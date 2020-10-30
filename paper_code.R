@@ -6,8 +6,6 @@ library(stats)
 library(tmap)
 library(ggplot2)
 
-setwd("C:/Users/Adrian/Desktop/covid-acba")
-
 # update data
 urlCABA <- "https://cdn.buenosaires.gob.ar/datosabiertos/datasets/salud/casos-covid-19/casos_covid19.csv"
 download.file(urlCABA,"datos/covidCABA.csv")
