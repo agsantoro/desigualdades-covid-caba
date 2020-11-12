@@ -6,6 +6,7 @@ library(stats)
 library(tmap)
 library(ggplot2)
 
+
 # update data
 urlCABA <- "https://cdn.buenosaires.gob.ar/datosabiertos/datasets/salud/casos-covid-19/casos_covid19.csv"
 download.file(urlCABA,"datos/covidCABA.csv")
@@ -77,8 +78,29 @@ covidCABA <- covidCABA %>% dplyr::filter(provincia=="CABA" &
 # 129111 confirmados
 # 3686 muertes
 
+# days after first case
+covidCABA$fecha_clasificacion <- substr(covidCABA$fecha_clasificacion,1,9)
+str(covidCABA$fecha_clasificacion)
+covidCABA$fecha_clasificacion <- paste0(
+  substr(covidCABA$fecha_clasificacion, 1, 2),
+  "/",
+  substr(covidCABA$fecha_clasificacion, 3, 5),
+  "/",
+  substr(covidCABA$fecha_clasificacion, 6, 9)
+)
+as.Date(covidCABA$fecha_clasificacion, "%d/%B/%y")
+covidCABA$fecha_clasificacion <- tolower(str_replace(covidCABA$fecha_clasificacion,"/","-"))
+
+format(covidCABA$fecha_clasificacion, format="d%-%b-%y")
+
+as.Date("22-JAN-19",format="%d-%b-%y")
 
 covidCABA$comuna <- paste0("COMUNA.",str_pad(covidCABA$comuna,2,"left","0"))
+as.Date("22-01-19",format="%d-%m-%y")
+x <- c("03-Ago-2011", "21-Ene-2012")
+as.Date(x, format = "%d-%b-%Y")
+Sys.setlocale(locale = "English")
+as.Date("01 Jan 10", format="%d %b %y")
 
 # df with cases
 TODOS <- covidCABA %>% dplyr::group_by(COMUNA=comuna) %>% dplyr::tally()
@@ -102,7 +124,7 @@ covidCABA <- covidCABA %>% dplyr::mutate(GRUPEDAD = case_when(between(edad,0,4) 
                                                               between(edad,65,69) ~ "6569",
                                                               between(edad,70,74) ~ "7074",
                                                               between(edad,75,79) ~ "7579",
-                                                              between(edad,80,120) ~ "80XX",
+                                                              between(edad,80,130) ~ "80XX",
                                                               is.na(edad) ~ "9999"))
 covidCABA$fecha_clasificacion <- substr(covidCABA$fecha_clasificacion,1,9)
 covidCABA$fecha_fallecimiento <- substr(covidCABA$fecha_fallecimiento,1,9)
@@ -119,7 +141,7 @@ poblaCABA <- merge(poblaCABA,poblaCABA[poblaCABA$COMUNA=="TOTAL",] %>% dplyr::se
 
 # adding cases data
 poblaCABA <- merge(poblaCABA, covidCABA %>% dplyr::group_by(GRUPEDAD, COMUNA=comuna) %>% dplyr::summarise(CASOS=n()) %>% dplyr::select(GRUPEDAD, COMUNA, CASOS), all.y  = TRUE)
-poblaCABA[is.na(poblaCABA)] <- 0
+#poblaCABA[is.na(poblaCABA)] <- 0
 poblaCABA <- rbind(poblaCABA,poblaCABA %>% group_by(GRUPEDAD) %>% summarise(COMUNA="TOTAL",POBTOT=sum(POBTOT),TOTEST=max(TOTEST),POBEST=max(POBEST),CASOS=sum(CASOS)))
 
 # df with indicence by age group
