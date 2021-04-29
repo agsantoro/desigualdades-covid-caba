@@ -40,7 +40,7 @@ covidCABA <- covidCABA %>% dplyr::filter(provincia=="CABA" &
                                          fecha_fallecimiento=as.Date(parse_date_time(substr(fecha_fallecimiento,1,9), orders = c("dmy"))))
                                          
 
-# df with cases
+# df de todos los registrados
 TODOS <- covidCABA %>% dplyr::group_by(COMUNA=comuna) %>% dplyr::tally()
 colnames(TODOS)[2] <- "TODOS"
 TODOS[16,2] <- count(covidCABA)
@@ -252,7 +252,7 @@ LETALIDAD$LS_LET_80MAS <- LETALIDAD$LET_80MAS + 1.96*sqrt((LETALIDAD$LET_80MAS*(
 # mapa CABA
 load("mapa/mapaCaba.Rdata")
 
-# function to plot map
+# función para mapas
 func_tmap <- function(map, df, vector, titulo_graf="Título mapa", titulo_leyenda="Título leyenda")
 {
   mapa <- raster::merge(map, df)
@@ -274,16 +274,16 @@ func_tmap <- function(map, df, vector, titulo_graf="Título mapa", titulo_leyend
     
 }
 
-# plot SMRs map
+# mapa de RMEs
 func_tmap(mapa,RME,"RME", "RME", "RME")
 
-# plot figure X
+# grafico
 ggplot(INCID.POR.EDAD %>% filter(COMUNA %in% c("COMUNA.04","COMUNA.12")) %>% arrange(GRUPEDAD,COMUNA), aes(x=GRUPEDAD, y=INCID, fill=COMUNA)) +
   geom_bar(stat="identity", position=position_dodge()) + 
   scale_fill_grey()
 
 
-# function to get rates of ratios with confidence interval
+# function cociente de tasas
 IC_coc_tasas <- function(df=POSITIVIDAD,
                          tasa=POSITIVIDAD$POSITIVIDAD,
                          numerador=POSITIVIDAD$CASOS,
