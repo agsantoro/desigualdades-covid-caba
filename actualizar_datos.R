@@ -10,7 +10,7 @@ library(ggplot2)
 
 #### descarga datos actualizados ####
 urlCABA <- "https://cdn.buenosaires.gob.ar/datosabiertos/datasets/salud/casos-covid-19/casos_covid19.csv"
-#download.file(urlCABA,"datos/covidCABA.csv")
+download.file(urlCABA,"datos/covidCABA.csv")
 
 #### crea DF con IIE por comuma ####
 INDEX <- data.frame(COMUNA=c('COMUNA.01','COMUNA.02','COMUNA.03','COMUNA.04','COMUNA.05','COMUNA.06','COMUNA.07','COMUNA.08','COMUNA.09','COMUNA.10','COMUNA.11','COMUNA.12','COMUNA.13','COMUNA.14','COMUNA.15','TOTAL'),
