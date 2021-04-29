@@ -4,111 +4,50 @@ library(stringr)
 library(tibble)
 library(stats)
 library(tmap)
+library(lubridate)
 library(ggplot2)
 
 
-# update data
+#### descarga datos actualizados ####
 urlCABA <- "https://cdn.buenosaires.gob.ar/datosabiertos/datasets/salud/casos-covid-19/casos_covid19.csv"
-download.file(urlCABA,"datos/covidCABA.csv")
+#download.file(urlCABA,"datos/covidCABA.csv")
 
-# df with SII data
-INDEX <- data.frame(COMUNA=c('COMUNA.01',
-                             'COMUNA.02',
-                             'COMUNA.03',
-                             'COMUNA.04',
-                             'COMUNA.05',
-                             'COMUNA.06',
-                             'COMUNA.07',
-                             'COMUNA.08',
-                             'COMUNA.09',
-                             'COMUNA.10',
-                             'COMUNA.11',
-                             'COMUNA.12',
-                             'COMUNA.13',
-                             'COMUNA.14',
-                             'COMUNA.15',
-                             'TOTAL'),
-                    INDEX=c(1.099528002,
-                            1.148891108,
-                            0.736967111,
-                            0.720190009,
-                            0.891667423,
-                            1.051556685,
-                            0.911500408,
-                            0.747692959,
-                            0.813848295,
-                            0.973298841,
-                            0.952936371,
-                            1.149813924,
-                            1.211037488,
-                            1.286814317,
-                            0.959471726,
-                            1),
-                    ZONA=c("Centro",
-                           "Norte",
-                           "Centro",
-                           "Sur",
-                           "Centro",
-                           "Centro",
-                           "Centro",
-                           "Sur",
-                           "Sur",
-                           "Sur",
-                           "Centro",
-                           "Centro",
-                           "Norte",
-                           "Norte",
-                           "Centro",
-                           "Total")
+#### crea DF con IIE por comuma ####
+INDEX <- data.frame(COMUNA=c('COMUNA.01','COMUNA.02','COMUNA.03','COMUNA.04','COMUNA.05','COMUNA.06','COMUNA.07','COMUNA.08','COMUNA.09','COMUNA.10','COMUNA.11','COMUNA.12','COMUNA.13','COMUNA.14','COMUNA.15','TOTAL'),
+                    INDEX=c(1.099528002,1.148891108,0.736967111,0.720190009,0.891667423,1.051556685,0.911500408,0.747692959,0.813848295,0.973298841,0.952936371,1.149813924,1.211037488,1.286814317,0.959471726,1),
+                    ZONA=c("Centro","Norte","Centro","Sur","Centro","Centro","Centro","Sur","Sur","Sur","Centro","Centro","Norte","Norte","Centro","Total")) %>% dplyr::mutate(link=paste0("02","0",substr(COMUNA,8,10)))
+
+
                     
-                    )
-
-INDEX$link <- paste0("02","0",substr(INDEX$COMUNA,8,10))
-                    
-                             
 
 
-# read and clean ACBA data
+# procesa datos
 covidCABA <- read.csv("datos/covidCABA.csv")
+
+resumenArchivo <- list(
+  registrosTotales <- paste0("FECHA: ",Sys.Date()," - REGISTROS TOTALES:"," ",nrow(covidCABA)),
+  confirmados <- paste0("FECHA: ",Sys.Date()," - CASOS CONFIRMADOS:"," ",nrow(covidCABA %>% dplyr::filter(clasificacion=="confirmado" & provincia=="CABA"))),
+  eliminados <- paste0("FECHA: ",Sys.Date()," - CASOS CONFIRMADOS CABA SIN EDAD O COMUNA:"," ",nrow(covidCABA %>% dplyr::filter(clasificacion=="confirmado" & 
+                                                                                                                                  provincia=="CABA" & 
+                                                                                                                                  is.na(edad)==T & 
+                                                                                                                                  (is.na(comuna)==T | comuna<1 | comuna>15 )))))
+                
 covidCABA <- covidCABA %>% dplyr::filter(provincia=="CABA" & 
                                          between(comuna,1,15) &
-                                         is.na(edad)==FALSE)
-
-# 339652 casos totales
-# 129111 confirmados
-# 3686 muertes
-
-# days after first case
-covidCABA$fecha_clasificacion <- substr(covidCABA$fecha_clasificacion,1,9)
-str(covidCABA$fecha_clasificacion)
-covidCABA$fecha_clasificacion <- paste0(
-  substr(covidCABA$fecha_clasificacion, 1, 2),
-  "/",
-  substr(covidCABA$fecha_clasificacion, 3, 5),
-  "/",
-  substr(covidCABA$fecha_clasificacion, 6, 9)
-)
-as.Date(covidCABA$fecha_clasificacion, "%d/%B/%y")
-covidCABA$fecha_clasificacion <- tolower(str_replace(covidCABA$fecha_clasificacion,"/","-"))
-
-format(covidCABA$fecha_clasificacion, format="d%-%b-%y")
-
-as.Date("22-JAN-19",format="%d-%b-%y")
-
-covidCABA$comuna <- paste0("COMUNA.",str_pad(covidCABA$comuna,2,"left","0"))
-as.Date("22-01-19",format="%d-%m-%y")
-x <- c("03-Ago-2011", "21-Ene-2012")
-as.Date(x, format = "%d-%b-%Y")
-Sys.setlocale(locale = "English")
-as.Date("01 Jan 10", format="%d %b %y")
+                                         is.na(edad)==FALSE) %>%
+                           dplyr::mutate(fecha_clasificacion=as.Date(parse_date_time(substr(fecha_clasificacion,1,9), orders = c("dmy"))),
+                                         comuna=paste0("COMUNA.",str_pad(comuna,2,"left","0")),
+                                         fecha_fallecimiento=as.Date(parse_date_time(substr(fecha_fallecimiento,1,9), orders = c("dmy"))))
+                                         
 
 # df with cases
 TODOS <- covidCABA %>% dplyr::group_by(COMUNA=comuna) %>% dplyr::tally()
 colnames(TODOS)[2] <- "TODOS"
 TODOS[16,2] <- count(covidCABA)
 TODOS[16,1] <- "TOTAL"
-covidCABA <- covidCABA %>% dplyr::filter(clasificacion=="confirmado")
-covidCABA <- covidCABA %>% dplyr::mutate(GRUPEDAD = case_when(between(edad,0,4) ~ "0004",
+
+covidCABA <- covidCABA %>% dplyr::filter(clasificacion=="confirmado") %>%
+                           dplyr::mutate(GRUPEDAD = case_when(between(edad,0,4) ~ "0004",
                                                               between(edad,5,9) ~ "0509",
                                                               between(edad,10,14) ~ "1014",
                                                               between(edad,15,19) ~ "1519",
@@ -126,31 +65,27 @@ covidCABA <- covidCABA %>% dplyr::mutate(GRUPEDAD = case_when(between(edad,0,4) 
                                                               between(edad,75,79) ~ "7579",
                                                               between(edad,80,130) ~ "80XX",
                                                               is.na(edad) ~ "9999"))
-covidCABA$fecha_clasificacion <- substr(covidCABA$fecha_clasificacion,1,9)
-covidCABA$fecha_fallecimiento <- substr(covidCABA$fecha_fallecimiento,1,9)
-covidCABA$fecha_clasificacion <- as.Date(covidCABA$fecha_clasificacion, format="%d%b%Y")
-covidCABA$fecha_fallecimiento <- as.Date(covidCABA$fecha_fallecimiento, format="%d%b%Y")
 
-# df with population data
+# agrega datos de población
 load("datos/poblaCABA.Rdata")
 poblaCABA <- poblaCABA %>% gather(COMUNA, POBTOT, 2:17) %>% dplyr::filter(GRUPEDAD!="TOTAL")
 poblaCABA$TOTEST <- sum(poblaCABA$POBTOT[poblaCABA$COMUNA=="TOTAL"])
 
-# adding standard population
+# agrega población estandar
 poblaCABA <- merge(poblaCABA,poblaCABA[poblaCABA$COMUNA=="TOTAL",] %>% dplyr::select(GRUPEDAD, POBEST=POBTOT)) %>% arrange(COMUNA,GRUPEDAD)
 
-# adding cases data
+# agrega casos
 poblaCABA <- merge(poblaCABA, covidCABA %>% dplyr::group_by(GRUPEDAD, COMUNA=comuna) %>% dplyr::summarise(CASOS=n()) %>% dplyr::select(GRUPEDAD, COMUNA, CASOS), all.y  = TRUE)
-#poblaCABA[is.na(poblaCABA)] <- 0
 poblaCABA <- rbind(poblaCABA,poblaCABA %>% group_by(GRUPEDAD) %>% summarise(COMUNA="TOTAL",POBTOT=sum(POBTOT),TOTEST=max(TOTEST),POBEST=max(POBEST),CASOS=sum(CASOS)))
 
-# df with indicence by age group
+# df de incidencia por edad
 INCID.POR.EDAD <- poblaCABA
 INCID.POR.EDAD$INCID <- INCID.POR.EDAD$CASOS/INCID.POR.EDAD$POBTOT*1000 
 
 
-# add mortality data
+# agrega mortalidad
 poblaCABA <- merge(poblaCABA, covidCABA %>% dplyr::filter(fallecido=="si") %>% dplyr::group_by(GRUPEDAD, COMUNA=comuna) %>% summarise(MUERTES=n()) %>% dplyr::select(GRUPEDAD, COMUNA, MUERTES), all.x = TRUE)
+poblaCABA$GRUPEDAD <- as.character(poblaCABA$GRUPEDAD)
 poblaCABA[is.na(poblaCABA)] <- 0
 for (row in 1:nrow(poblaCABA)) 
 {
@@ -161,16 +96,16 @@ for (row in 1:nrow(poblaCABA))
 } 
 
 
-# adding standard death rates by age
+# agrega tasas estandar
 poblaCABA <- merge(poblaCABA,poblaCABA %>% dplyr::filter(poblaCABA$COMUNA=="TOTAL") %>% mutate(TASAS_REF=MUERTES/POBTOT) %>% dplyr::select(GRUPEDAD,TASAS_REF))
 poblaCABA$MUERTES.ESPERADAS <- poblaCABA$TASAS_REF*poblaCABA$POBTOT
 poblaCABA[is.na(poblaCABA)] <- 0
 sum(poblaCABA$MUERTES[poblaCABA$COMUNA=="TOTAL"])
 
 
-# df with cumulative sum by age-group 
+# df frecuencia acumulada por edad 
 MEDIANA.EDAD <- poblaCABA %>% filter(GRUPEDAD!="9999" & COMUNA!="COMUNA.Sin esp.") 
-MEDIANA.EDAD <- poblaCABA %>% arrange(COMUNA,GRUPEDAD)
+MEDIANA.EDAD <- MEDIANA.EDAD %>% arrange(COMUNA,GRUPEDAD)
 MEDIANA.EDAD <- MEDIANA.EDAD %>% group_by(COMUNA) %>% mutate(MUERTES.ESP.TOTAL=sum(MUERTES.ESPERADAS))
 MEDIANA.EDAD <- MEDIANA.EDAD %>% group_by(COMUNA) %>% mutate(MUERTES.ESP.ACUM = cumsum(MUERTES.ESPERADAS)/MUERTES.ESP.TOTAL)
 MEDIANA.EDAD <- MEDIANA.EDAD %>% group_by(COMUNA) %>% mutate(MUERTES.OBS.TOTAL=sum(MUERTES))
@@ -199,7 +134,7 @@ for (row in 2:nrow(MEDIANA.EDAD))
 }
 
 
-# df with RMEs
+# df con RMEs
 RME <- poblaCABA %>% filter(GRUPEDAD!="9999" & COMUNA!="COMUNA.Sin esp.") 
 RME <- poblaCABA %>% dplyr::group_by(COMUNA) %>% dplyr::summarise(OBS=sum(MUERTES), ESP=sum(MUERTES.ESPERADAS), RME=(sum(MUERTES)/sum(MUERTES.ESPERADAS)*100))
 RME$LI= (RME$OBS*((1-(1/(9*RME$OBS)) -(1.96/3)*sqrt((1/RME$OBS)))^3))/RME$ESP
@@ -207,7 +142,7 @@ RME$LS=(RME$OBS+1)*((1-(1/(9*(RME$OBS+1)))+(1.96/3)*sqrt((1/(RME$OBS+1))))^3)/RM
 RME$link <- paste0("02","0",substr(RME$COMUNA,8,10))
 RME$RME <- round(RME$RME,digits=1)
 
-# df with cummulative incidence
+# df con incidencia acumulada
 INCID <- poblaCABA %>% filter(GRUPEDAD!="9999" & COMUNA!="COMUNA.Sin esp.") 
 INCID <- INCID %>% dplyr::group_by(COMUNA) %>% dplyr::summarise(CASOS=sum(CASOS), POBLACION=sum(POBTOT), INCID.POR.MIL=sum(CASOS)/sum(POBTOT))
 INCID$link <- paste0("02","0",substr(INCID$COMUNA,8,10))
@@ -217,14 +152,12 @@ INCID$INCID.POR.MIL <- INCID$INCID.POR.MIL*1000
 INCID$LI_INCID.POR.MIL <- INCID$LI_INCID.POR.MIL*1000 
 INCID$LS_INCID.POR.MIL <- INCID$LS_INCID.POR.MIL*1000
 
-# df with data by age group
+# df con datos por edad
 EDAD <- union_all(covidCABA %>% filter(is.na(edad)==FALSE) %>% dplyr::select(comuna,edad),
                   covidCABA %>% filter(is.na(edad)==FALSE) %>% dplyr::select("TOTAL"=comuna,edad))
 EDAD$comuna[is.na(EDAD$comuna)==TRUE] <- "TOTAL"
 EDAD$TOTAL <- NULL
 EDAD$edad <- str_pad(as.character(EDAD$edad),3,"left","0")
-
-
 EDAD <- EDAD %>% dplyr::group_by(comuna) %>% dplyr::summarise(CASOS.00A14=sum(between(edad,"000","014")),
                                                               CASOS.15A49=sum(between(edad,"015","049")),
                                                               CASOS.50A59=sum(between(edad,"050","059")),
@@ -239,8 +172,6 @@ EDAD_F <- union_all(covidCABA %>% filter(is.na(edad)==FALSE & fallecido=="si") %
 EDAD_F$comuna[is.na(EDAD_F$comuna)==TRUE] <- "TOTAL"
 EDAD_F$TOTAL <- NULL
 EDAD_F$edad <- str_pad(as.character(EDAD_F$edad),3,"left","0")
-
-
 EDAD_F <- EDAD_F %>% dplyr::group_by(comuna) %>% dplyr::summarise(MUERTES.00A14=sum(between(edad,"000","014")),
                                                                   MUERTES.15A49=sum(between(edad,"015","049")),
                                                                   MUERTES.50A59=sum(between(edad,"050","059")),
@@ -251,7 +182,7 @@ EDAD_F <- EDAD_F %>% dplyr::group_by(comuna) %>% dplyr::summarise(MUERTES.00A14=
 
 EDAD <- merge(EDAD,EDAD_F)
 
-# df with population by age group
+# df con poblacion por grupos de edad
 POBLACION <- reshape(poblaCABA,timevar="GRUPEDAD",idvar="COMUNA",direction="wide")
 POBLACION <- data.frame(POBLACION$COMUNA,
                         POBLACION$POBTOT.0004,
@@ -272,7 +203,7 @@ POBLACION <- data.frame(POBLACION$COMUNA,
                         POBLACION$POBTOT.7579,
                         POBLACION$POBTOT.80XX)
 
-# df with positivity data
+# df con positividad
 POSITIVIDAD <- data.frame(
   COMUNA=TODOS$COMUNA,
   TODOS=TODOS$TODOS, 
@@ -283,7 +214,7 @@ POSITIVIDAD$LI_POSITIVIDAD <- POSITIVIDAD$POSITIVIDAD-1.96*sqrt((POSITIVIDAD$POS
 POSITIVIDAD$LS_POSITIVIDAD <- POSITIVIDAD$POSITIVIDAD+1.96*sqrt((POSITIVIDAD$POSITIVIDAD*(1-POSITIVIDAD$POSITIVIDAD))/POSITIVIDAD$TODOS)
 POSITIVIDAD$link <- paste0("02","0",substr(POSITIVIDAD$COMUNA,8,10))
 
-# df with fatality data
+# df con letalidad
 LETALIDAD <- data.frame(
 INCID$COMUNA,
 RME$OBS/INCID$CASOS*100,
@@ -318,7 +249,7 @@ LETALIDAD$LET_80MAS <- EDAD$MUERTES.80MAS / EDAD$CASOS.80MAS * 100
 LETALIDAD$LI_LET_80MAS <- LETALIDAD$LET_80MAS - 1.96*sqrt((LETALIDAD$LET_80MAS*(100-LETALIDAD$LET_80MAS))/EDAD$CASOS.80MAS) 
 LETALIDAD$LS_LET_80MAS <- LETALIDAD$LET_80MAS + 1.96*sqrt((LETALIDAD$LET_80MAS*(100-LETALIDAD$LET_80MAS))/EDAD$CASOS.80MAS)
 
-# ACBA raster map
+# mapa CABA
 load("mapa/mapaCaba.Rdata")
 
 # function to plot map
@@ -347,7 +278,7 @@ func_tmap <- function(map, df, vector, titulo_graf="Título mapa", titulo_leyend
 func_tmap(mapa,RME,"RME", "RME", "RME")
 
 # plot figure X
-ggplot(INCID.POR.EDAD %>% filter(COMUNA %in% c("COMUNA.04","COMUNA.14")) %>% arrange(GRUPEDAD,COMUNA), aes(x=GRUPEDAD, y=INCID, fill=COMUNA)) +
+ggplot(INCID.POR.EDAD %>% filter(COMUNA %in% c("COMUNA.04","COMUNA.12")) %>% arrange(GRUPEDAD,COMUNA), aes(x=GRUPEDAD, y=INCID, fill=COMUNA)) +
   geom_bar(stat="identity", position=position_dodge()) + 
   scale_fill_grey()
 
@@ -407,7 +338,7 @@ return(
 )
                       
 }
-IC_coc_tasas(POSITIVIDAD,POSITIVIDAD$POSITIVIDAD,POSITIVIDAD$CASOS,POSITIVIDAD$TODOS,INDEX$INDEX)
+IC_coc_tasas(INCID,INCID$INCID.POR.MIL,INCID$CASOS,INCID$POBLACION,INDEX$INDEX)
 
 
 data.frame(RME$COMUNA,INCID$POBLACION, RME$RME,INDEX$INDEX, INDEX$ZONA) %>% filter(RME.COMUNA!="TOTAL") 
@@ -421,7 +352,7 @@ ggplot(data.frame(RME$COMUNA,INCID$POBLACION, RME$RME,INDEX$INDEX, INDEX$ZONA) %
         ylab("Raz?n de mortalidad estandarizada") + 
         xlab("?ndice de ingresos estandarizado") + 
         ggtitle("Razones de mortalidad estandarizadas por COVID-10, seg?n comuna y zona. \nCiudad Aut?noma de Buenos Aires. A?o 2020.", subtitle = waiver()) +
-        labs(color='Zona', size="RME") +
+        labs(color='Zona') +
         geom_hline(yintercept=100, linetype="dashed") +
         geom_vline(xintercept=1, linetype="dashed")
 
