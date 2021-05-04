@@ -766,7 +766,7 @@ covidCABA_primera  <- covidCABA_primera  %>% dplyr::filter(provincia == "CABA" &
 
 
 
-# df de todos los registrados
+# df de todos los registrados#
 TODOS <-
   covidCABA_primera %>% dplyr::group_by(COMUNA = comuna) %>% dplyr::tally()
 colnames(TODOS)[2] <- "TODOS"
