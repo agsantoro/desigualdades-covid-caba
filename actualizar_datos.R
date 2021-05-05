@@ -1319,7 +1319,7 @@ lollipop_primera <- ggplot(tabla_lolipop_primera) +
        color="Zona:",
        title = " Gráfico de desigualdades. Primera ola")
 
-### inequality plots letalidad primera ola #####
+#### inequality plots letalidad primera ola #####
 tabla_letalidad_primera <- LETALIDAD %>% left_join(INDEX, by="COMUNA") %>% 
   select(c(6,9,12,15,18,21,26)) %>% 
   gather("grupo_edad", "let", -ZONA) %>% group_by(ZONA,grupo_edad) %>%
