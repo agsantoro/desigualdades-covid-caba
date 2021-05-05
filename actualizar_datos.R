@@ -1319,7 +1319,29 @@ lollipop_primera <- ggplot(tabla_lolipop_primera) +
        color="Zona:",
        title = " Gráfico de desigualdades. Primera ola")
 
+### inequality plots letalidad primera ola #####
+tabla_letalidad_primera <- LETALIDAD %>% left_join(INDEX, by="COMUNA") %>% 
+  select(c(6,9,12,15,18,21,26)) %>% 
+  gather("grupo_edad", "let", -ZONA) %>% group_by(ZONA,grupo_edad) %>%
+  summarise(promedio_let=mean(let)) %>% spread(ZONA, promedio_let) %>% 
+  select(-Total)
+tabla_letalidad_primera <- tabla_letalidad_primera[,c(1,3,2,4)]
+lollipop_let_primera <- ggplot(tabla_letalidad_primera) +
+  geom_segment( aes(x=grupo_edad, xend=grupo_edad, y=Norte, yend=Sur), color="grey", size=1.5) +
+  geom_point( aes(x=grupo_edad, y=Sur, color="Sur"), size=6 ) +
+  geom_point( aes(x=grupo_edad, y=Centro, color="Centro"), size=6 ) +
+  geom_point( aes(x=grupo_edad, y=Norte, color="Norte"), size=6 ) +
+  scale_colour_manual(labels = c( "Centro","Norte","Sur"),
+                      values = c( "#8A8A8A","#D4D4D4","#666666"))+
+  # ylim(0, 90)+
+  coord_flip()+
+  theme(legend.position = "bottom") +
+  theme_bw()+
+  labs(x="Grupo de edad", y="Promedio de letalidad por zona",
+       color="Zona:",
+       title = " Gráfico de desigualdades. Primera ola. Letalidad")
 
+lollipop_let_primera
 ##### comparo graficos entre la primera ola y la segunda#####
 #incidencia
 mapa_incid_primera_grob <- tmap_grob(mapa_incid_primera)
