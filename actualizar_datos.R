@@ -548,10 +548,10 @@ func_tmap <-
   }
 
 # mapa de RMEs
-mapa_rme <- func_tmap(mapa, RME, "RME", "RME", "RME")
-mapa_let <- func_tmap(mapa, LETALIDAD, "LETALIDAD", "LETALIDAD", "LETALIDAD")
-mapa_incid <- func_tmap(mapa, INCID, "INCID.POR.MIL", "INCID.POR.MIL", "Incidencia c/100 mil. hab.")
-mapa_positiv <- func_tmap(mapa, POSITIVIDAD, "POSITIVIDAD", "Positividad", "Positividad")
+mapa_rme <- func_tmap(mapa, RME, "RME", "h)", "RME")
+mapa_let <- func_tmap(mapa, LETALIDAD, "LETALIDAD", "d)", "LETALIDAD")
+mapa_incid <- func_tmap(mapa, INCID, "INCID.POR.MIL", "b)", "Incidencia c/100 mil. hab.")
+mapa_positiv <- func_tmap(mapa, POSITIVIDAD, "POSITIVIDAD", "f)", "Positividad")
 # grafico
 grafico <- ggplot(
   INCID.POR.EDAD %>% filter(COMUNA %in% c("COMUNA.04", "COMUNA.12")) %>% arrange(GRUPEDAD, COMUNA),
@@ -1182,10 +1182,10 @@ func_tmap <-
   }
 
 #### mapas ####
-mapa_rme_primera <- func_tmap(mapa, RME, "RME", "RME", "RME")
-mapa_let_primera <- func_tmap(mapa, LETALIDAD, "LETALIDAD", "LETALIDAD", "LETALIDAD")
-mapa_incid_primera <- func_tmap(mapa, INCID, "INCID.POR.MIL", "INCID.POR.MIL", "Incidencia c/100 mil. hab.")
-mapa_positiv_primera <- func_tmap(mapa, POSITIVIDAD, "POSITIVIDAD", "Positividad", "Positividad")
+mapa_rme_primera <- func_tmap(mapa, RME, "RME", "g)", "RME")
+mapa_let_primera <- func_tmap(mapa, LETALIDAD, "LETALIDAD", "c)", "LETALIDAD")
+mapa_incid_primera <- func_tmap(mapa, INCID, "INCID.POR.MIL", "a)", "Incidencia c/100 mil. hab.")
+mapa_positiv_primera <- func_tmap(mapa, POSITIVIDAD, "POSITIVIDAD", "e)", "Positividad")
 # grafico
 grafico_primera<- ggplot(
   INCID.POR.EDAD %>% filter(COMUNA %in% c("COMUNA.04", "COMUNA.12")) %>% arrange(GRUPEDAD, COMUNA),
@@ -1367,6 +1367,13 @@ mapa_rme_grob <- tmap_grob(mapa_rme)
 grid.arrange(mapa_rme_primera_grob , mapa_rme_grob,
              top = "Titulo,RME comparación primera y segunda ola", nrow = 1)
 
+
+grid.arrange(mapa_incid_primera_grob , mapa_incid_grob,
+             mapa_let_primera_grob,mapa_let_grob ,
+             mapa_positiv_primera_grob , mapa_positiv_grob ,
+             mapa_rme_primera_grob , mapa_rme_grob, ncol=2)
+             
+             
 gridExtra::grid.arrange(graf_desigualdad_primera,graf_desigualdad_segunda,ncol = 2)
 gridExtra::grid.arrange(lollipop_primera,lollipop_segunda,ncol = 2)
 
