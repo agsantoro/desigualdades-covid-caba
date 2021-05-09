@@ -7,7 +7,7 @@ library(tmap)
 library(lubridate)
 library(ggplot2)
 library(gridExtra)
-
+let_primera
 #### descarga datos actualizados ####
 urlCABA <-
   "https://cdn.buenosaires.gob.ar/datosabiertos/datasets/salud/casos-covid-19/casos_covid19.csv"
@@ -687,6 +687,31 @@ lollipop_segunda <- ggplot(tabla_lolipop_segunda) +
        color="Zona:",
        title = " Gráfico de desigualdades. Segunda ola")
 
+#### inequality plots letalidad primera ola #####
+tabla_letalidad_segunda <- LETALIDAD %>% left_join(INDEX, by="COMUNA") %>% 
+  select(c(6,9,12,15,18,21,26)) %>% 
+  gather("grupo_edad", "let", -ZONA) %>% group_by(ZONA,grupo_edad) %>%
+  summarise(promedio_let=mean(let)) %>% spread(ZONA, promedio_let) %>% 
+  select(-Total)
+tabla_letalidad_segunda <- tabla_letalidad_segunda[,c(1,3,2,4)]
+lollipop_let_segunda <- ggplot(tabla_letalidad_segunda) +
+  geom_segment( aes(x=grupo_edad, xend=grupo_edad, y=Norte, yend=Sur), color="grey", size=1.5) +
+  geom_point( aes(x=grupo_edad, y=Sur, color="Sur"), size=6 ) +
+  geom_point( aes(x=grupo_edad, y=Centro, color="Centro"), size=6 ) +
+  geom_point( aes(x=grupo_edad, y=Norte, color="Norte"), size=6 ) +
+  scale_colour_manual(labels = c( "Centro","Norte","Sur"),
+                      values = c( "#8A8A8A","#D4D4D4","#666666"))+
+  # ylim(0, 90)+
+  coord_flip()+
+  theme(legend.position = "bottom") +
+  theme_bw()+
+  labs(x="Grupo de edad", y="Promedio de letalidad por zona",
+       color="Zona:",
+       title = " Gráfico de desigualdades. Segunda ola. Letalidad")
+
+lollipop_let_segunda
+
+
 
 ###### analisis de primer ola, comparado con segunda ola
 #hay 14 casos outliers (previos al 24 de feb 2020)
@@ -1342,6 +1367,51 @@ lollipop_let_primera <- ggplot(tabla_letalidad_primera) +
        title = " Gráfico de desigualdades. Primera ola. Letalidad")
 
 lollipop_let_primera
+
+### barplot letalidad
+
+tabla_barplot <- LETALIDAD %>%
+  select(COMUNA, comuna2, 
+         #LET_00A14,   LI_LET_00A14, LS_LET_00A14, 
+         LET_15A49,
+         LI_LET_15A49,LS_LET_15A49, LET_50A59,
+         LI_LET_50A59, LS_LET_50A59,LET_60A69,
+         LI_LET_60A69,LS_LET_60A69,
+         LET_70A79, LI_LET_70A79, LS_LET_70A79,LET_80MAS,
+         LI_LET_80MAS, LS_LET_80MAS
+  ) %>% 
+  gather("grupo_edad", "valor",-comuna2,-COMUNA) %>% 
+  mutate(clasif=case_when(
+    str_detect(grupo_edad,"LI_")~ "lim_inf", 
+    str_detect(grupo_edad,"LS_")~ "lim_sup",
+    str_detect(grupo_edad,"LET_")~ "let",
+    TRUE ~ "Na"  )) 
+tabla_barplot$grupo_edad <-str_sub(tabla_barplot$grupo_edad,-5)
+
+tabla_barplot <-tabla_barplot %>% spread(clasif, valor)
+
+tabla_barplot <- tabla_barplot %>% left_join(INDEX, by="COMUNA") %>%
+  select(-INDEX, -link)
+#graf
+library(forcats)
+let_primera <- ggplot(tabla_barplot %>% filter(ZONA!="Total") %>%
+         mutate(ZONA=fct_relevel(ZONA,"Norte","Centro","Sur"),
+                comuna2=fct_relevel(comuna2,"C 4","C 3","C 8","C 9", "C 5",
+                                    "C 7","C 11", "C 15",
+                                    "C 10","C 6","C 1", "C 2","C 12","C 13", "C 14")),
+       aes(x=comuna2,y=let, fill=grupo_edad)) +
+  geom_bar(stat = "identity",position=position_dodge(width=0.9)) +
+  #geom_segment( aes(x=comuna2, xend=comuna2, y=0, yend=let)) +
+  #geom_point( size=5, color="black", 
+  # shape=21, stroke=2) +
+  geom_errorbar(aes(ymin=lim_inf, ymax=lim_sup),
+                colour="black", alpha=0.5,
+                position=position_dodge(width=0.9), width = 0.25) +
+  
+  labs(title='Comunas ordenadas por INDEX. Primera ola', x="Comuna (ordenada por valor de IIE", y="Letalidad (%)", 
+       fill="Grupo de edad")+
+  facet_wrap(~grupo_edad, scales = "free_y", ncol=3)+
+  theme(legend.position = "none")
 ##### comparo graficos entre la primera ola y la segunda#####
 #incidencia
 mapa_incid_primera_grob <- tmap_grob(mapa_incid_primera)
@@ -1376,6 +1446,7 @@ grid.arrange(mapa_incid_primera_grob , mapa_incid_grob,
              
 gridExtra::grid.arrange(graf_desigualdad_primera,graf_desigualdad_segunda,ncol = 2)
 gridExtra::grid.arrange(lollipop_primera,lollipop_segunda,ncol = 2)
+gridExtra::grid.arrange(lollipop_let_primera,lollipop_let_segunda,ncol = 2)
 
 ##### PERIODO COMPLETO ####
 ###### grafico de desigualdades para todo el periodo #####
@@ -1970,3 +2041,49 @@ View(
   MEDIANA.EDAD %>% select(COMUNA, GRUPEDAD, MEDIANA.ESP, MEDIANA.OBS) %>% filter(MEDIANA.ESP != "" |
                                                                                    MEDIANA.OBS != "")
 )
+
+### barplot letalidad
+
+tabla_barplot <- LETALIDAD %>%
+  select(COMUNA, comuna2, 
+         #LET_00A14,   LI_LET_00A14, LS_LET_00A14, 
+         LET_15A49,
+         LI_LET_15A49,LS_LET_15A49, LET_50A59,
+         LI_LET_50A59, LS_LET_50A59,LET_60A69,
+         LI_LET_60A69,LS_LET_60A69,
+         LET_70A79, LI_LET_70A79, LS_LET_70A79,LET_80MAS,
+         LI_LET_80MAS, LS_LET_80MAS
+         ) %>% 
+  gather("grupo_edad", "valor",-comuna2,-COMUNA) %>% 
+  mutate(clasif=case_when(
+    str_detect(grupo_edad,"LI_")~ "lim_inf", 
+    str_detect(grupo_edad,"LS_")~ "lim_sup",
+    str_detect(grupo_edad,"LET_")~ "let",
+    TRUE ~ "Na"  )) 
+tabla_barplot$grupo_edad <-str_sub(tabla_barplot$grupo_edad,-5)
+
+tabla_barplot <-tabla_barplot %>% spread(clasif, valor)
+
+tabla_barplot <- tabla_barplot %>% left_join(INDEX, by="COMUNA") %>%
+  select(-INDEX, -link)
+#graf
+library(forcats)
+let_tot <- ggplot(tabla_barplot %>% filter(ZONA!="Total") %>%
+         mutate(ZONA=fct_relevel(ZONA,"Norte","Centro","Sur"),
+                comuna2=fct_relevel(comuna2,"C 4","C 3","C 8","C 9", "C 5",
+                                    "C 7","C 11", "C 15",
+                                    "C 10","C 6","C 1", "C 2","C 12","C 13", "C 14")),
+                aes(x=comuna2,y=let, fill=grupo_edad)) +
+  geom_bar(stat = "identity",position=position_dodge(width=0.9)) +
+  #geom_segment( aes(x=comuna2, xend=comuna2, y=0, yend=let)) +
+  #geom_point( size=5, color="black", 
+             # shape=21, stroke=2) +
+  geom_errorbar(aes(ymin=lim_inf, ymax=lim_sup),
+                  colour="black", alpha=0.5,
+                 position=position_dodge(width=0.9), width = 0.25) +
+  
+  labs(title='Comunas ordenadas por INDEX', x="Comuna (ordenada por valor de IIE", y="Letalidad (%)", 
+       fill="Grupo de edad")+
+  facet_wrap(~grupo_edad, scales = "free_y", ncol=3)+
+  theme(legend.position = "none")
+  
