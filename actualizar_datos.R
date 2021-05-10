@@ -487,6 +487,42 @@ LETALIDAD$LI_LET_80MAS <-
 LETALIDAD$LS_LET_80MAS <-
   LETALIDAD$LET_80MAS + 1.96 * sqrt((LETALIDAD$LET_80MAS * (100 - LETALIDAD$LET_80MAS)) /
                                       EDAD$CASOS.80MAS)
+###letalidad por zona#####
+
+leta_por_zona <- data.frame(INCID$COMUNA, INCID$CASOS, 
+                            RME$OBS, INDEX$COMUNA, INDEX$ZONA) %>% 
+  group_by(INDEX.ZONA) %>% 
+  summarise(casos=sum(INCID.CASOS), muertes=sum(RME.OBS)) %>% 
+  mutate(letalidad=round(muertes/casos*100,2),
+         IC_sup= round(letalidad + 1.96 * sqrt(( letalidad * (100 - letalidad)) /casos),1),
+         IC_inf=round(letalidad - 1.96 * sqrt(( letalidad * (100 - letalidad)) /
+                                                casos),1),
+         let= paste(letalidad, "(",IC_inf, "-", IC_sup, ")")) %>% 
+  dplyr::select(INDEX.ZONA, let) %>% spread(INDEX.ZONA, let) %>% 
+  mutate(grupo_edad="Total") %>% relocate(grupo_edad, .before=Centro)
+
+leta_por_zona_edad <- EDAD %>% gather("grupo","valor", -comuna) %>% 
+  mutate(clasif=case_when(
+    str_detect(grupo,"CASOS")~ "INCID", 
+    str_detect(grupo,"MUERTES")~ "MUERTES",
+    TRUE ~ "Na"  )) %>% mutate(grupo_edad=str_sub(grupo,-5)) %>% 
+  dplyr::select(-grupo) %>% spread(clasif, valor) %>% 
+  left_join(INDEX, by=c("comuna"= "COMUNA")) %>% 
+  dplyr::select(-link) %>% group_by(ZONA, grupo_edad) %>% 
+  summarise(muertes=sum(MUERTES),incid=sum(INCID)) %>% 
+  mutate(letalidad=round(muertes/incid*100,1)) %>% 
+  mutate(IC_sup= round(letalidad + 1.96 * sqrt(( letalidad * (100 - letalidad)) /
+                                           incid),1),
+         IC_inf=round(letalidad - 1.96 * sqrt(( letalidad * (100 - letalidad)) /
+                                          incid),1)) %>% 
+  dplyr::select(-muertes, -incid) %>% 
+  mutate(let= paste(letalidad, "(",IC_inf, "-", IC_sup, ")")) %>% 
+  dplyr::select(ZONA, grupo_edad, let) %>% 
+ spread(ZONA, let) %>% 
+  relocate(Norte, .after = grupo_edad) %>% 
+  rbind(leta_por_zona)
+  
+
 
 # mapa CABA
 load("mapa/mapaCaba.Rdata")
