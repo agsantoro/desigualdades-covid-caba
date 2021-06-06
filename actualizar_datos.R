@@ -7,7 +7,7 @@ library(tmap)
 library(lubridate)
 library(ggplot2)
 library(gridExtra)
-let_primera
+
 #### descarga datos actualizados ####
 urlCABA <-
   "https://cdn.buenosaires.gob.ar/datosabiertos/datasets/salud/casos-covid-19/casos_covid19.csv"
@@ -128,7 +128,7 @@ covidCABA <- covidCABA %>% dplyr::filter(provincia == "CABA" &
     fecha_fallecimiento = as.Date(parse_date_time(
       substr(fecha_fallecimiento, 1, 9), orders = c("dmy")
     ))
-  )%>% dplyr::filter(fecha_clasificacion<="2021-04-30",
+  )%>% dplyr::filter(fecha_clasificacion<="2021-05-31",
                      fecha_clasificacion>="2020-11-29")
 
 
@@ -1356,7 +1356,7 @@ graf_desigualdad_primera <- ggplot(
                    alpha = 0.4,
                    segment.color = 'grey50',) 
 
-graf_desigualdad_primera
+graf_desigualdad_segunda
 View(
   MEDIANA.EDAD %>% select(COMUNA, GRUPEDAD, MEDIANA.ESP, MEDIANA.OBS) %>% filter(MEDIANA.ESP != "" |
                                                                                    MEDIANA.OBS != "")
@@ -1521,7 +1521,7 @@ resumenArchivo <- list(
             provincia ==
             "CABA" &
             is.na(edad) ==
-            T &
+            T |#aca le cambie el & por el |
             (is.na(comuna) ==
                T | comuna < 1 | comuna > 15)
         )
@@ -1540,7 +1540,7 @@ covidCABA_tot <- covidCABA_tot %>% dplyr::filter(provincia == "CABA" &
     fecha_fallecimiento = as.Date(parse_date_time(
       substr(fecha_fallecimiento, 1, 9), orders = c("dmy")
     ))
-  )%>% dplyr::filter(fecha_clasificacion<="2021-04-30")
+  )%>% dplyr::filter(fecha_clasificacion<="2021-05-31")
 
 # df de todos los registrados
 TODOS <-
@@ -1548,7 +1548,8 @@ TODOS <-
 colnames(TODOS)[2] <- "TODOS"
 TODOS[16, 2] <- count(covidCABA_tot)
 TODOS[16, 1] <- "TOTAL"
-
+length(unique(covidCABA_tot$fecha_clasificacion))
+difftime("2020-03-06","2021-05-31",units='days')
 covidCABA_tot <-
   covidCABA_tot %>% dplyr::filter(clasificacion == "confirmado") %>%
   dplyr::mutate(
@@ -1897,6 +1898,40 @@ LETALIDAD$LI_LET_80MAS <-
 LETALIDAD$LS_LET_80MAS <-
   LETALIDAD$LET_80MAS + 1.96 * sqrt((LETALIDAD$LET_80MAS * (100 - LETALIDAD$LET_80MAS)) /
                                       EDAD$CASOS.80MAS)
+###letalidad por zona#####
+
+leta_por_zona <- data.frame(INCID$COMUNA, INCID$CASOS, 
+                            RME$OBS, INDEX$COMUNA, INDEX$ZONA) %>% 
+  group_by(INDEX.ZONA) %>% 
+  summarise(casos=sum(INCID.CASOS), muertes=sum(RME.OBS)) %>% 
+  mutate(letalidad=round(muertes/casos*100,2),
+         IC_sup= round(letalidad + 1.96 * sqrt(( letalidad * (100 - letalidad)) /casos),1),
+         IC_inf=round(letalidad - 1.96 * sqrt(( letalidad * (100 - letalidad)) /
+                                                casos),1),
+         let= paste(letalidad, "(",IC_inf, "-", IC_sup, ")")) %>% 
+  dplyr::select(INDEX.ZONA, let) %>% spread(INDEX.ZONA, let) %>% 
+  mutate(grupo_edad="Total") %>% relocate(grupo_edad, .before=Centro)
+
+leta_por_zona_edad <- EDAD %>% gather("grupo","valor", -comuna) %>% 
+  mutate(clasif=case_when(
+    str_detect(grupo,"CASOS")~ "INCID", 
+    str_detect(grupo,"MUERTES")~ "MUERTES",
+    TRUE ~ "Na"  )) %>% mutate(grupo_edad=str_sub(grupo,-5)) %>% 
+  dplyr::select(-grupo) %>% spread(clasif, valor) %>% 
+  left_join(INDEX, by=c("comuna"= "COMUNA")) %>% 
+  dplyr::select(-link) %>% group_by(ZONA, grupo_edad) %>% 
+  summarise(muertes=sum(MUERTES),incid=sum(INCID)) %>% 
+  mutate(letalidad=round(muertes/incid*100,1)) %>% 
+  mutate(IC_sup= round(letalidad + 1.96 * sqrt(( letalidad * (100 - letalidad)) /
+                                                 incid),1),
+         IC_inf=round(letalidad - 1.96 * sqrt(( letalidad * (100 - letalidad)) /
+                                                incid),1)) %>% 
+  dplyr::select(-muertes, -incid) %>% 
+  mutate(let= paste(letalidad, "(",IC_inf, "-", IC_sup, ")")) %>% 
+  dplyr::select(ZONA, grupo_edad, let) %>% 
+  spread(ZONA, let) %>% 
+  relocate(Norte, .after = grupo_edad) %>% 
+  rbind(leta_por_zona)
 
 # mapa CABA
 load("mapa/mapaCaba.Rdata")
@@ -2072,11 +2107,15 @@ graf_desigualdad_tot <- ggplot(
                    alpha = 0.4,
                    segment.color = 'grey50',) 
 
-graf_desigualdad_tot
+graf_desigualdad_segunda
 View(
   MEDIANA.EDAD %>% select(COMUNA, GRUPEDAD, MEDIANA.ESP, MEDIANA.OBS) %>% filter(MEDIANA.ESP != "" |
                                                                                    MEDIANA.OBS != "")
 )
+
+
+cor.test(graf_desigualdad$RME.RME,graf_desigualdad
+$INDEX.INDEX,method ="pearson")
 
 ### barplot letalidad
 
@@ -2123,3 +2162,6 @@ let_tot <- ggplot(tabla_barplot %>% filter(ZONA!="Total") %>%
   facet_wrap(~grupo_edad, scales = "free_y", ncol=3)+
   theme(legend.position = "none")
   
+write_xlsx(leta_por_zona_edad,"tabla_leta_edad.xlsx")
+
+citation("ggplot2")
